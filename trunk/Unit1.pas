@@ -1,6 +1,13 @@
 (*
+  Simple Almost-Real-Life example of SynopseSQLite3 Framework.
+  Written by Michal Gajek, http://migajek.com/
 
-  [ ] in "Object", instead of ID, keep RecordRef ?
+  The demo doesn't depend on any 3rd party libraries nor components,
+  however it is highly recommended to work with "SQLITEDEMO_USE_FASTMM4" condition ON,
+  together with EnableMemoryLeaks in FastMM in order to keep the code leak-free.
+
+  ToDO:
+    [ ] in each ListBox / ComboBox "Object", instead of ID, keep RecordRef ?
 *)
 unit Unit1;
 
@@ -8,10 +15,11 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, ComCtrls, StdCtrls,
+  Dialogs, ComCtrls, StdCtrls, CheckLst, Grids,
+  
   SynCommons, SQLite3Commons, SQLite3, SQLite3UI,
 
-  uCustomer, CheckLst, Grids;
+  uCustomer;
 
 type
   TForm1 = class(TForm)
@@ -399,7 +407,7 @@ if Key = VK_RETURN then
     try
       if hist.ID = 0 then
         hist.SQL:= edtQuery.Text;
-      hist.LastUsed:= Now; //Iso8601Now; -> causes Invalid floating point op...
+      hist.LastUsed:= Now();
       if hist.ID > 0 then
         Database.Update(hist)
       else
