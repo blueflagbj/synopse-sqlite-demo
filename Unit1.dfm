@@ -159,6 +159,30 @@ object Form1: TForm1
         end
       end
     end
+    object TabSheet4: TTabSheet
+      Caption = 'SQL'
+      ImageIndex = 3
+      object dgTable: TDrawGrid
+        Left = 8
+        Top = 32
+        Width = 505
+        Height = 265
+        ColCount = 1
+        FixedCols = 0
+        RowCount = 1
+        FixedRows = 0
+        TabOrder = 0
+      end
+      object edtQuery: TComboBox
+        Left = 8
+        Top = 8
+        Width = 505
+        Height = 21
+        ItemHeight = 13
+        TabOrder = 1
+        OnKeyDown = edtQueryKeyDown
+      end
+    end
     object TabSheet3: TTabSheet
       Caption = 'About'
       ImageIndex = 2
