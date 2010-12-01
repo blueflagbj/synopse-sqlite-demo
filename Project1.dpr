@@ -4,7 +4,9 @@
 program Project1;
 
 uses
+  {$IFDEF SQLITEDEMO_USE_FASTMM4}
   FastMM4,
+  {$ENDIF}
   Forms,
   Unit1 in 'Unit1.pas' {Form1},
   uCustomer in 'uCustomer.pas',
