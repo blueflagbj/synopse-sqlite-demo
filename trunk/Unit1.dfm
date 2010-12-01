@@ -27,20 +27,27 @@ object Form1: TForm1
     TabOrder = 0
     object TabSheet1: TTabSheet
       Caption = 'Customers'
-      object lbCustomers: TListBox
+      object Label8: TLabel
         Left = 8
         Top = 8
+        Width = 161
+        Height = 13
+        Caption = 'This is a list of customers we have'
+      end
+      object lbCustomers: TListBox
+        Left = 8
+        Top = 24
         Width = 241
-        Height = 281
+        Height = 265
         ItemHeight = 13
         TabOrder = 0
         OnClick = lbCustomersClick
       end
       object GroupBox1: TGroupBox
         Left = 256
-        Top = 8
+        Top = 24
         Width = 249
-        Height = 249
+        Height = 233
         Caption = 'Details'
         TabOrder = 1
         object Label1: TLabel
@@ -71,16 +78,16 @@ object Form1: TForm1
         end
         object Label3: TLabel
           Left = 16
-          Top = 88
+          Top = 64
           Width = 32
           Height = 13
           Caption = 'Tasks:'
         end
         object lbCustomerTasks: TListBox
-          Left = 24
-          Top = 112
-          Width = 209
-          Height = 121
+          Left = 16
+          Top = 80
+          Width = 217
+          Height = 137
           ItemHeight = 13
           TabOrder = 0
         end
@@ -181,6 +188,46 @@ object Form1: TForm1
         ItemHeight = 13
         TabOrder = 1
         OnKeyDown = edtQueryKeyDown
+      end
+    end
+    object TabSheet5: TTabSheet
+      Caption = 'Users'
+      ImageIndex = 4
+      object lbUsers: TListBox
+        Left = 8
+        Top = 16
+        Width = 241
+        Height = 273
+        ItemHeight = 13
+        TabOrder = 0
+        OnClick = lbUsersClick
+      end
+      object GroupBox2: TGroupBox
+        Left = 264
+        Top = 16
+        Width = 241
+        Height = 105
+        Caption = 'Roles'
+        TabOrder = 1
+        object clbRoles: TCheckListBox
+          Left = 16
+          Top = 24
+          Width = 209
+          Height = 65
+          OnClickCheck = clbRolesClickCheck
+          Enabled = False
+          ItemHeight = 13
+          TabOrder = 0
+        end
+      end
+      object btnAddUser: TButton
+        Left = 256
+        Top = 264
+        Width = 75
+        Height = 25
+        Caption = 'Add User'
+        TabOrder = 2
+        OnClick = btnAddUserClick
       end
     end
     object TabSheet3: TTabSheet
