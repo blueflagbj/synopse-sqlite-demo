@@ -46,10 +46,11 @@ function CreateSampleModel: TSQLModel;
 
 
 implementation
+uses uQueryHistory;
 
 function CreateSampleModel: TSQLModel;
 begin
-  result := TSQLModel.Create([TCustomer, TTask, TTasks]);
+  result := TSQLModel.Create([TCustomer, TTask, TTasks, TQueryHistory]);
 end;
 
 

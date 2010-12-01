@@ -9,9 +9,9 @@ interface
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, ComCtrls, StdCtrls,
-  SynCommons, SQLite3Commons, SQLite3,
+  SynCommons, SQLite3Commons, SQLite3, SQLite3UI,
 
-  uCustomer, CheckLst;
+  uCustomer, CheckLst, Grids;
 
 type
   TForm1 = class(TForm)
@@ -38,17 +38,21 @@ type
     Label5: TLabel;
     Label6: TLabel;
     Label7: TLabel;
+    TabSheet4: TTabSheet;
+    dgTable: TDrawGrid;
+    edtQuery: TComboBox;
     procedure FormCreate(Sender: TObject);
     procedure btnAddCustomerClick(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure lbCustomersClick(Sender: TObject);
     procedure btnNewTaskClick(Sender: TObject);
-    procedure Button1Click(Sender: TObject);
     procedure cbCustomersClick(Sender: TObject);
     procedure lbTasksClick(Sender: TObject);
     procedure cbTaskPriorityChange(Sender: TObject);
     procedure CheckListBox1ClickCheck(Sender: TObject);
     procedure Label7Click(Sender: TObject);
+    procedure edtQueryKeyDown(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
   private
     { Private declarations }
     function LoadCustomer(const ACustomerID: integer): TCustomer;
@@ -59,9 +63,11 @@ type
     function LoadTask(const ATaskID: integer): TTask;
     procedure FillTasksList(const AList: TStrings; ATasks: TTask);
     procedure LoadTasksForCustomer(const ACustomer: TCustomer; const AList: TStrings);
+
+    procedure LoadQueryHistory();
   public
     { Public declarations }
-    Database: TSQLRest;
+    Database: TSQLRestClientDB;
     Model: TSQLModel;
   end;
 
@@ -69,7 +75,7 @@ var
   Form1: TForm1;
 
 implementation
-uses ShellApi;
+uses ShellApi, uQueryHistory;
 {$R *.dfm}
 
 // loads customer data into "Details" box. Pass nil in order to clear the box.
@@ -102,8 +108,7 @@ end;
 
 function TForm1.LoadCustomer(const ACustomerID: integer): TCustomer;
 begin
-  // cust:= TCustomer.Create(Database, ACustomerID); -> causes AV on SQLite3Commons:10111 [Static := fStaticData[TableIndex];]; TSQLRestServer.Retrieve method
-  result:= TCustomer.Create(Database, 'id = %', [ACustomerID]);;
+   result:= TCustomer.Create(Database, ACustomerID);
 end;
 
 // loads a list of customers to a AList
@@ -126,6 +131,7 @@ begin
 
   finally
     AList.EndUpdate();
+    FreeAndNil(data);
     FreeAndNil(cust);
   end;
 
@@ -134,12 +140,14 @@ end;
 procedure TForm1.FillTasksList(const AList: TStrings; ATasks: TTask);
 var
   freeAfter: boolean;
+  data: TSQLTable;
 begin
   freeAfter:= ATasks = nil;
   if freeAfter then
     begin
       ATasks:= TTask.Create();
-      ATasks.FillPrepare(Database.MultiFieldValues(TTask, ''));
+      data:= Database.MultiFieldValues(TTask, '');
+      ATasks.FillPrepare(data);
     end;
 
   try
@@ -150,7 +158,10 @@ begin
   finally
     AList.EndUpdate();
     if freeAfter then
-      FreeAndNil(ATasks);
+      begin
+        FreeAndNil(ATasks);
+        FreeAndNil(data);
+      end;
   end;
 
 end;
@@ -167,6 +178,7 @@ begin
       begin
         task:= TTask(Database.Retrieve(ACustomer.Tasks.Dest));
         AList.AddObject(Format('%s', [task.Text]), Pointer(task.id));
+        FreeAndNil(task);
       end;
   finally
     AList.EndUpdate();
@@ -181,8 +193,8 @@ end;
 procedure TForm1.FormCreate(Sender: TObject);
 begin
 Model:= CreateSampleModel;
-Database:= TSQLRestServerDB.Create(Model, ChangeFileExt(Application.ExeName,'.db3'));
-TSQLRestServerDB(Database).CreateMissingTables(0);
+Database:= TSQLRestClientDB.Create(Model, CreateSampleModel, ChangeFileExt(Application.ExeName,'.db3'), TSQLRestServerDB);
+Database.Server.CreateMissingTables(0);
 
 // clear all the fields.
 DisplayCustomerInfo(nil);
@@ -191,6 +203,8 @@ cbCustomers.AddItem('<Any customer>', nil);
 cbCustomers.ItemIndex:= 0;
 FillCustomersList(cbCustomers.Items, false);
 cbCustomersClick(nil);
+
+LoadQueryHistory();
 end;
 
 procedure TForm1.btnAddCustomerClick(Sender: TObject);
@@ -228,6 +242,7 @@ begin
         begin
           cust:= LoadCustomer( Integer(lbCustomers.Items.Objects[lbCustomers.ItemIndex]) );
           DisplayCustomerInfo(cust);
+          FreeAndNil(cust);
         end
     end
   else
@@ -252,11 +267,6 @@ begin
 
 end;
 
-procedure TForm1.Button1Click(Sender: TObject);
-begin
-//TCustomer.Create(Database, 3).Tasks.ManyAdd(Database, 3, 2, true);
-end;
-
 procedure TForm1.cbCustomersClick(Sender: TObject);
 var
   cust: TCustomer;
@@ -269,6 +279,7 @@ gbEditTask.Visible:= false;
         begin
           cust:= LoadCustomer( Integer(cbCustomers.Items.Objects[cbCustomers.ItemIndex]) );
           LoadTasksForCustomer(cust, lbTasks.Items);
+          FreeAndNil(cust);
         end
       else
         FillTasksList(lbTasks.Items, nil);
@@ -312,6 +323,7 @@ begin
       end;
   finally
     cust.Free();
+    FreeAndNil(task);
   end;
 end;
 
@@ -353,10 +365,11 @@ begin
                     cust.Tasks.ManyAdd(Database, cust.ID, task.ID, true)
                   else
                     cust.Tasks.ManyDelete(Database, cust.ID, task.ID);
+                    
+                  FreeAndNil(cust);
                 end;
-              //Database.Update(task);
             end;
-          task.Free;
+          FreeAndNil(task);
         end;
     end
 
@@ -365,6 +378,55 @@ end;
 procedure TForm1.Label7Click(Sender: TObject);
 begin
 ShellExecute(0, 'open', 'http://code.google.com/p/synopse-sqlite-demo/', '', '',  SW_SHOWNORMAL);
+end;
+
+procedure TForm1.edtQueryKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+var
+ data: TSQLTable;
+ hist: TQueryHistory;
+begin
+if Key = VK_RETURN then
+  begin
+    Key:= 0;
+
+    // we don't have to worry for freeing the data nor the "previously" created instance of TSQLTableToGrid
+    // as the Framework takes care of everything.
+    data:= Database.ExecuteList([TCustomer, TTask, TTasks], edtQuery.Text);
+    TSQLTableToGrid.Create(dgTable, data, Database);
+
+    hist:= TQueryHistory.Create(Database, 'SQL = "%"', [edtQuery.Text]);
+    try
+      if hist.ID = 0 then
+        hist.SQL:= edtQuery.Text;
+      hist.LastUsed:= Now; //Iso8601Now; -> causes Invalid floating point op...
+      if hist.ID > 0 then
+        Database.Update(hist)
+      else
+        Database.Add(hist, true);
+    finally
+      FreeAndNil(hist);
+      LoadQueryHistory();
+    end;
+    
+  end;
+end;
+
+procedure TForm1.LoadQueryHistory();
+var
+ hist: TQueryHistory;
+begin
+  hist:= TQueryHistory.Create();
+  edtQuery.Items.BeginUpdate();
+  edtQuery.Items.Clear();
+  try
+    hist.FillHistory(Database);
+    while hist.FillOne do
+      edtQuery.AddItem(hist.SQL, nil);
+  finally
+    edtQuery.Items.EndUpdate();
+    FreeAndNil(hist);
+  end;
 end;
 
 end.
