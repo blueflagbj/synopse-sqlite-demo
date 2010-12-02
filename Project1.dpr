@@ -4,13 +4,13 @@
 program Project1;
 
 uses
-  {$IFDEF SQLITEDEMO_USE_FASTMM4}
   FastMM4,
-  {$ENDIF}
   Forms,
+  Controls,
   Unit1 in 'Unit1.pas' {Form1},
   uCustomer in 'uCustomer.pas',
-  uQueryHistory in 'uQueryHistory.pas';
+  uQueryHistory in 'uQueryHistory.pas',
+  uLoginForm in 'uLoginForm.pas' {LoginForm};
 
 const
   AppName = 'Synopse SQLite3 Demo';
@@ -18,8 +18,24 @@ const
 {$R *.res}
 begin
   Application.Initialize;
-  Application.CreateForm(TForm1, Form1);
-  Form1.Caption:= AppName;
-  Form1.Label4.Caption:= AppName;
+  // init the database client
+  InitClient();
+  LoginForm:= TLoginForm.Create(Application);
+
+  // when no users defined, just let in ...
+  if TSQLUser.GetCount <= 0 then
+    LoginForm.LoginOk:= true
+  else
+    begin
+      LoginForm.Caption:= AppName + ' - ' + LoginForm.Caption;
+      LoginForm.ShowModal;
+    end;
+    
+  if LoginForm.LoginOk then
+    begin
+      Application.CreateForm(TForm1, Form1);
+      Form1.Caption:= AppName;
+      Form1.Label4.Caption:= AppName;
+    end;
   Application.Run;
 end.
