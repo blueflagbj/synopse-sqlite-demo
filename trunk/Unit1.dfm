@@ -15,7 +15,6 @@ object Form1: TForm1
   Font.Style = []
   OldCreateOrder = False
   OnCreate = FormCreate
-  OnDestroy = FormDestroy
   PixelsPerInch = 96
   TextHeight = 13
   object PageControl1: TPageControl
@@ -25,6 +24,7 @@ object Form1: TForm1
     Height = 329
     ActivePage = TabSheet3
     TabOrder = 0
+    OnChange = PageControl1Change
     object TabSheet1: TTabSheet
       Caption = 'Customers'
       object Label8: TLabel
@@ -190,7 +190,7 @@ object Form1: TForm1
         OnKeyDown = edtQueryKeyDown
       end
     end
-    object TabSheet5: TTabSheet
+    object tbUsers: TTabSheet
       Caption = 'Users'
       ImageIndex = 4
       object lbUsers: TListBox
@@ -206,9 +206,16 @@ object Form1: TForm1
         Left = 264
         Top = 16
         Width = 241
-        Height = 105
+        Height = 129
         Caption = 'Roles'
         TabOrder = 1
+        object Label9: TLabel
+          Left = 16
+          Top = 100
+          Width = 45
+          Height = 13
+          Caption = 'Valid until'
+        end
         object clbRoles: TCheckListBox
           Left = 16
           Top = 24
@@ -218,6 +225,17 @@ object Form1: TForm1
           Enabled = False
           ItemHeight = 13
           TabOrder = 0
+          OnClick = clbRolesClick
+        end
+        object dtRoleExpires: TDateTimePicker
+          Left = 112
+          Top = 96
+          Width = 113
+          Height = 21
+          Date = 40514.921962129630000000
+          Time = 40514.921962129630000000
+          TabOrder = 1
+          OnChange = dtRoleExpiresChange
         end
       end
       object btnAddUser: TButton

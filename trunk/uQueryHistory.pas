@@ -6,35 +6,33 @@ uses
   SQLite3Commons;
 
 type
-  TQueryHistory = class(TSQLRecord)
+  TSQLQueryHistory = class(TSQLRecord)
   private
     fSQL: RawUTF8;
     fLastUsed: TDateTime;
-    fData: TSQLTable;
   published
     property SQL: RawUTF8 read fSQL write fSQL;
     property LastUsed: TDateTime read fLastUsed write fLastUsed;
   public
-    procedure FillHistory(const aClient: TSQLRest);
-  protected
-    destructor Destroy(); override;
+    procedure FillHistory();
   end;
 
 implementation
-uses SysUtils;
+uses SysUtils, uCustomer;
 
-procedure TQueryHistory.FillHistory(const aClient: TSQLRest);
+procedure TSQLQueryHistory.FillHistory();
+var
+  fData: TSQLTable;
 begin
-  fData:= aClient.MultiFieldValues(RecordClass, '');
+  if globalClient = nil then
+    exit;
+    
+  fData:= globalClient.MultiFieldValues(RecordClass, '');
   fData.SortFields(fData.FieldIndex('LastUsed'), false, nil, sftDateTime);
+  fData.OwnerMustFree:= true;
   FillPrepare(fData);
 end;
 
 
-destructor TQueryHistory.Destroy();
-begin
-  FreeAndNil(fData);
-  inherited;
-end;
 
 end.

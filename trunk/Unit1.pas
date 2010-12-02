@@ -17,7 +17,7 @@ uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, ComCtrls, StdCtrls, CheckLst, Grids,
   
-  SynCommons, SQLite3Commons, SQLite3, SQLite3UI,
+  SynCommons, SQLite3UI, SQLite3Commons, 
 
   uCustomer;
 
@@ -49,15 +49,16 @@ type
     TabSheet4: TTabSheet;
     dgTable: TDrawGrid;
     edtQuery: TComboBox;
-    TabSheet5: TTabSheet;
+    tbUsers: TTabSheet;
     Label8: TLabel;
     lbUsers: TListBox;
     GroupBox2: TGroupBox;
     clbRoles: TCheckListBox;
     btnAddUser: TButton;
+    dtRoleExpires: TDateTimePicker;
+    Label9: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure btnAddCustomerClick(Sender: TObject);
-    procedure FormDestroy(Sender: TObject);
     procedure lbCustomersClick(Sender: TObject);
     procedure btnNewTaskClick(Sender: TObject);
     procedure cbCustomersClick(Sender: TObject);
@@ -67,20 +68,22 @@ type
     procedure Label7Click(Sender: TObject);
     procedure edtQueryKeyDown(Sender: TObject; var Key: Word;
       Shift: TShiftState);
-    procedure Button1Click(Sender: TObject);
     procedure btnAddUserClick(Sender: TObject);
     procedure lbUsersClick(Sender: TObject);
     procedure clbRolesClickCheck(Sender: TObject);
+    procedure clbRolesClick(Sender: TObject);
+    procedure dtRoleExpiresChange(Sender: TObject);
+    procedure PageControl1Change(Sender: TObject);
   private
     { Private declarations }
-    function LoadCustomer(const ACustomerID: integer): TCustomer;
-    procedure DisplayCustomerInfo(const ACustomer: TCustomer); overload;
+    function LoadCustomer(const ACustomerID: integer): TSQLCustomer;
+    procedure DisplayCustomerInfo(const ACustomer: TSQLCustomer); overload;
     procedure DisplayCustomerInfo(const ACustomerID: integer); overload;
     procedure FillCustomersList(const AList: TStrings; const AClear: boolean = true);
 
-    function LoadTask(const ATaskID: integer): TTask;
-    procedure FillTasksList(const AList: TStrings; ATasks: TTask);
-    procedure LoadTasksForCustomer(const ACustomer: TCustomer; const AList: TStrings);
+    function LoadTask(const ATaskID: integer): TSQLTask;
+    procedure FillTasksList(const AList: TStrings; ATasks: TSQLTask);
+    procedure LoadTasksForCustomer(const ACustomer: TSQLCustomer; const AList: TStrings);
 
     procedure LoadQueryHistory();
 
@@ -88,24 +91,22 @@ type
     procedure FillUsersList(const AList: TStrings; const AClear: boolean = true);
   public
     { Public declarations }
-    Database: TSQLRestClientDB;
-    Model: TSQLModel;
   end;
 
 var
   Form1: TForm1;
 
 implementation
-uses ShellApi, DateUtils, uQueryHistory;
+uses ShellApi, DateUtils, uQueryHistory, Math;
 {$R *.dfm}
 
 // loads customer data into "Details" box. Pass nil in order to clear the box.
-procedure TForm1.DisplayCustomerInfo(const ACustomer: TCustomer);
+procedure TForm1.DisplayCustomerInfo(const ACustomer: TSQLCustomer);
 begin
   if ACustomer <> nil then
     begin
-      lblName.Caption:= ACustomer.Name;
-      lblSurname.Caption:= ACustomer.Surname;
+      lblName.Caption:= UTF8ToString(ACustomer.Name);
+      lblSurname.Caption:= UTF8ToString(ACustomer.Surname);
       LoadTasksForCustomer(ACustomer, lbCustomerTasks.Items);
     end
   else
@@ -117,7 +118,7 @@ end;
 
 procedure TForm1.DisplayCustomerInfo(const ACustomerID: integer);
 var
-  cust: TCustomer;
+  cust: TSQLCustomer;
 begin
   cust:= LoadCustomer(ACustomerID);
   try
@@ -127,96 +128,78 @@ begin
   end;
 end;
 
-function TForm1.LoadCustomer(const ACustomerID: integer): TCustomer;
+function TForm1.LoadCustomer(const ACustomerID: integer): TSQLCustomer;
 begin
-   result:= TCustomer.Create(Database, ACustomerID);
+   result:= TSQLCustomer.Create(globalClient, ACustomerID);
 end;
 
 // loads a list of customers to a AList
 procedure TForm1.FillCustomersList(const AList: TStrings; const AClear: boolean = true);
 var
- data: TSQLTable;
- cust: TCustomer;
+ cust: TSQLCustomer;
 begin
   // load all the customers
-  data:= Database.MultiFieldValues(TCustomer, '');
-
   try
     AList.BeginUpdate();
     if AClear then
       AList.Clear();
-    cust:= TCustomer.Create();
-    cust.FillPrepare(data);
+    cust:= TSQLCustomer.CreateAndFillPrepare(globalClient, '');
     while cust.FillOne do
-      AList.AddObject(Format('%s, %s', [cust.Surname, cust.Name]), Pointer(cust.ID)); // we keep integer ID as "Data" object
+      AList.AddObject(Format('%s, %s', [UTF8ToString(cust.Surname), UTF8ToString(cust.Name)]), Pointer(cust.ID)); // we keep integer ID as "Data" object
 
   finally
     AList.EndUpdate();
-    FreeAndNil(data);
     FreeAndNil(cust);
   end;
 
 end;
 
-procedure TForm1.FillTasksList(const AList: TStrings; ATasks: TTask);
+procedure TForm1.FillTasksList(const AList: TStrings; ATasks: TSQLTask);
 var
   freeAfter: boolean;
-  data: TSQLTable;
 begin
   freeAfter:= ATasks = nil;
   if freeAfter then
-    begin
-      ATasks:= TTask.Create();
-      data:= Database.MultiFieldValues(TTask, '');
-      ATasks.FillPrepare(data);
-    end;
+    ATasks:= TSQLTask.CreateAndFillPrepare(globalClient, '');
 
   try
     AList.BeginUpdate();
     AList.Clear();
     while ATasks.FillOne do
-      AList.AddObject(Format('%s', [ATasks.Text]), Pointer(ATasks.ID));
+      AList.AddObject(Format('%s', [UTF8ToString(ATasks.Text)]), Pointer(ATasks.ID));
   finally
     AList.EndUpdate();
     if freeAfter then
-      begin
-        FreeAndNil(ATasks);
-        FreeAndNil(data);
-      end;
+      FreeAndNil(ATasks);
   end;
 
 end;
 
-procedure TForm1.LoadTasksForCustomer(const ACustomer: TCustomer; const AList: TStrings);
+procedure TForm1.LoadTasksForCustomer(const ACustomer: TSQLCustomer; const AList: TStrings);
 var
- task: TTask;
+ task: TSQLTask;
+ fIds: TIntegerDynArray;
 begin
-  ACustomer.Tasks.FillMany(Database, ACustomer.ID);
+  ACustomer.Tasks.DestGet(globalClient, ACustomer.ID, fIds);
+  task:= TSQLTask.CreateAndFillPrepare(globalClient, fIds);
   AList.BeginUpdate();
   AList.Clear();
   try
-    while ACustomer.Tasks.FillOne do
-      begin
-        task:= TTask(Database.Retrieve(ACustomer.Tasks.Dest));
-        AList.AddObject(Format('%s', [task.Text]), Pointer(task.id));
-        FreeAndNil(task);
-      end;
+    while task.FillOne do
+      AList.AddObject(Format('%s', [UTF8ToString(task.Text)]), Pointer(task.id));
   finally
     AList.EndUpdate();
+    FreeAndNil(task);
   end;
 end;
 
-function TForm1.LoadTask(const ATaskID: integer): TTask;
+function TForm1.LoadTask(const ATaskID: integer): TSQLTask;
 begin
-  result:= TTask.Create(Database, ATaskID);
+  result:= TSQLTask.Create(globalClient, ATaskID);
 end;
 
 procedure TForm1.FormCreate(Sender: TObject);
 begin
-Model:= CreateSampleModel;
-Database:= TSQLRestClientDB.Create(Model, CreateSampleModel, ChangeFileExt(Application.ExeName,'.db3'), TSQLRestServerDB);
-Database.Server.CreateMissingTables(0);
-
 // clear all the fields.
 DisplayCustomerInfo(nil);
 FillCustomersList(lbCustomers.Items);
@@ -227,22 +210,24 @@ cbCustomersClick(nil);
 
 LoadQueryHistory();
 
-TUserRole.CreateStandardRoles(Database);
+TSQLUserRole.CreateStandardRoles(globalClient);
 FillRolesList(clbRoles.Items);
 FillUsersList(lbUsers.Items);
+
+dtRoleExpires.DateTime:= IncMonth(Now(), 1);
 end;
 
 procedure TForm1.btnAddCustomerClick(Sender: TObject);
 var
-  cust: TCustomer;
+  cust: TSQLCustomer;
 begin
 
-  cust:= TCustomer.Create;
+  cust:= TSQLCustomer.Create;
   try
-    cust.Name:= InputBox('Name', 'Customer name', 'John');
-    cust.Surname:= InputBox('Surname', 'Customer surname', 'Doe');
+    cust.Name:= StringToUTF8(InputBox('Name', 'Customer name', 'John'));
+    cust.Surname:= StringToUTF8(InputBox('Surname', 'Customer surname', 'Doe'));
     if (cust.Name <> '') and (cust.Surname <> '') then
-      Database.Add(cust, true);
+      globalClient.Add(cust, true);
   finally
     FreeAndNil(cust);
     FillCustomersList(lbCustomers.Items);
@@ -250,15 +235,9 @@ begin
 
 end;
 
-procedure TForm1.FormDestroy(Sender: TObject);
-begin
-  Database.Free;
-  Model.Free;
-end;
-
 procedure TForm1.lbCustomersClick(Sender: TObject);
 var
-  cust: TCustomer;
+  cust: TSQLCustomer;
 begin
   if lbCustomers.ItemIndex <> -1 then
     begin
@@ -277,15 +256,15 @@ end;
 
 procedure TForm1.btnNewTaskClick(Sender: TObject);
 var
-  task: TTask;
+  task: TSQLTask;
 begin
 
-  task:= TTask.Create();
+  task:= TSQLTask.Create();
   try
-    task.Text:= InputBox('Text', 'Task description', '');
+    task.Text:= StringToUTF8(InputBox('Text', 'Task description', ''));
     task.Priority:= tpNormal;
     if (task.Text <> '') then
-      Database.Add(task, true);
+      globalClient.Add(task, true);
   finally
     FreeAndNil(task);
   end;
@@ -294,7 +273,7 @@ end;
 
 procedure TForm1.cbCustomersClick(Sender: TObject);
 var
-  cust: TCustomer;
+  cust: TSQLCustomer;
 begin
 gbEditTask.Visible:= false;
   if cbCustomers.ItemIndex <> -1 then
@@ -315,8 +294,8 @@ end;
 
 procedure TForm1.lbTasksClick(Sender: TObject);
 var
-  task: TTask;
-  cust: TCustomer;
+  task: TSQLTask;
+  cust: TSQLCustomer;
   clientsIds: TIntegerDynArray;
   i, j: integer;
 begin
@@ -335,9 +314,9 @@ begin
   FillCustomersList(CheckListBox1.Items, true);
   CheckListBox1.Tag:= task.ID;
   // load list of customers assigned to the given task
-  cust:= TCustomer.Create();
+  cust:= TSQLCustomer.Create();
   try
-    cust.Tasks.SourceGet(Database, task.ID, clientsIds);
+    cust.Tasks.SourceGet(globalClient, task.ID, clientsIds);
     for i:= low(clientsIds) to high(clientsIds) do
       begin
 
@@ -354,15 +333,15 @@ end;
 
 procedure TForm1.cbTaskPriorityChange(Sender: TObject);
 var
- task: TTask;
+ task: TSQLTask;
 begin
   if cbTaskPriority.Tag > 0 then
     begin
       task:= LoadTask(cbTaskPriority.Tag);
       if task <> nil then
         begin
-          task.Priority:= TTaskPriority(cbTaskPriority.ItemIndex);
-          Database.Update(task);
+          task.Priority:= TSQLTaskPriority(cbTaskPriority.ItemIndex);
+          globalClient.Update(task);
           task.Free;
         end;
     end
@@ -370,8 +349,8 @@ end;
 
 procedure TForm1.CheckListBox1ClickCheck(Sender: TObject);
 var
- task: TTask;
- cust: TCustomer;
+ task: TSQLTask;
+ cust: TSQLCustomer;
 begin
   // first, load the Task based on ID (stored in TAG property)
   if (sender as TComponent).Tag > 0 then
@@ -387,9 +366,9 @@ begin
               if cust <> nil then
                 begin
                   if CheckListBox1.Checked[CheckListBox1.ItemIndex] then
-                    cust.Tasks.ManyAdd(Database, cust.ID, task.ID, true)
+                    cust.Tasks.ManyAdd(globalClient, cust.ID, task.ID, true)
                   else
-                    cust.Tasks.ManyDelete(Database, cust.ID, task.ID);
+                    cust.Tasks.ManyDelete(globalClient, cust.ID, task.ID);
                     
                   FreeAndNil(cust);
                 end;
@@ -409,7 +388,7 @@ procedure TForm1.edtQueryKeyDown(Sender: TObject; var Key: Word;
   Shift: TShiftState);
 var
  data: TSQLTable;
- hist: TQueryHistory;
+ hist: TSQLQueryHistory;
 begin
 if Key = VK_RETURN then
   begin
@@ -417,18 +396,18 @@ if Key = VK_RETURN then
 
     // we don't have to worry for freeing the data nor the "previously" created instance of TSQLTableToGrid
     // as the Framework takes care of everything.
-    data:= Database.ExecuteList([TCustomer, TTask, TTasks], edtQuery.Text);
-    TSQLTableToGrid.Create(dgTable, data, Database);
+    data:= globalClient.ExecuteList([], edtQuery.Text);
+    TSQLTableToGrid.Create(dgTable, data, globalClient);
 
-    hist:= TQueryHistory.Create(Database, 'SQL = "%"', [edtQuery.Text]);
+    hist:= TSQLQueryHistory.Create(globalClient, 'SQL = "%"', [edtQuery.Text]);
     try
       if hist.ID = 0 then
         hist.SQL:= edtQuery.Text;
       hist.LastUsed:= Now();
       if hist.ID > 0 then
-        Database.Update(hist)
+        globalClient.Update(hist)
       else
-        Database.Add(hist, true);
+        globalClient.Add(hist, true);
     finally
       FreeAndNil(hist);
       LoadQueryHistory();
@@ -439,13 +418,13 @@ end;
 
 procedure TForm1.LoadQueryHistory();
 var
- hist: TQueryHistory;
+ hist: TSQLQueryHistory;
 begin
-  hist:= TQueryHistory.Create();
+  hist:= TSQLQueryHistory.Create();
   edtQuery.Items.BeginUpdate();
   edtQuery.Items.Clear();
   try
-    hist.FillHistory(Database);
+    hist.FillHistory();
     while hist.FillOne do
       edtQuery.AddItem(hist.SQL, nil);
   finally
@@ -454,31 +433,17 @@ begin
   end;
 end;
 
-procedure TForm1.Button1Click(Sender: TObject);
-var
- task: TTask;
-begin
- task:= TTask.Create();
- task.FillPrepare(Database.ExecuteList([TTask], InputBox('', '', 'SELECT * FROM TTask')));
- FillTasksList(lbTasks.Items, task);
- task.free;
-end;
-
 procedure TForm1.FillRolesList(const AList: TStrings);
 var
-  role: TUserRole;
-  data: TSQLTable;
+  role: TSQLUserRole;
 begin
-  role:= TUserRole.Create();
+  role:= TSQLUserRole.CreateAndFillPrepare(globalClient, '');
   AList.BeginUpdate();
   AList.Clear();
   try
-    data:= Database.MultiFieldValues(TUserRole, '');
-    role.FillPrepare(data);
     while role.FillOne do
-      AList.AddObject(role.RoleName, Pointer(role.id));
+      AList.AddObject(UTF8ToString(role.RoleName), Pointer(role.id));
   finally
-    FreeAndNil(data);
     FreeAndNil(role);
     AList.EndUpdate();
   end;
@@ -486,24 +451,19 @@ end;
 
 procedure TForm1.FillUsersList(const AList: TStrings; const AClear: boolean = true);
 var
- data: TSQLTable;
- user: TUser;
+ user: TSQLUser;
 begin
   // load all the customers
-  data:= Database.MultiFieldValues(TUser, '');
-
   try
     AList.BeginUpdate();
     if AClear then
       AList.Clear();
-    user:= TUser.Create();
-    user.FillPrepare(data);
+    user:= TSQLUser.CreateAndFillPrepare(globalClient, '');
     while user.FillOne do
-      AList.AddObject(Format('%s (%s, %s)', [user.login, user.Surname, user.Name]), Pointer(user.ID)); // we keep integer ID as "Data" object
+      AList.AddObject(Format('%s (%s, %s)', [UTF8ToString(user.login), UTF8ToString(user.Surname), UTF8ToString(user.Name)]), Pointer(user.ID)); // we keep integer ID as "Data" object
 
   finally
     AList.EndUpdate();
-    FreeAndNil(data);
     FreeAndNil(user);
   end;
 
@@ -512,17 +472,17 @@ end;
 
 procedure TForm1.btnAddUserClick(Sender: TObject);
 var
-  user: TUser;
+  user: TSQLUser;
 begin
 
-  user:= TUser.Create;
+  user:= TSQLUser.Create;
   try
-    user.Name:= InputBox('Name', 'User name', '');
-    user.Surname:= InputBox('Surname', 'User surname', '');
-    user.Login:= InputBox('Login', 'User login', '');
-    user.Password:= InputBox('Password', 'User password', '');
+    user.Name:= StringToUTF8( InputBox('Name', 'User name', '') );
+    user.Surname:= StringToUTF8( InputBox('Surname', 'User surname', '') );
+    user.Login:= StringToUTF8( InputBox('Login', 'User login', '') );
+    user.Password:= StringToUTF8( InputBox('Password', 'User password', '') );
     if (user.Name <> '') and (user.Surname <> '') and (user.Password <> '') and (user.Login <> '') then
-      Database.Add(user, true)
+      globalClient.Add(user, true)
     else
       MessageBox(handle, 'None of the data can be empty!', 'Wrong', MB_ICONEXCLAMATION);
   finally
@@ -536,23 +496,26 @@ end;
 procedure TForm1.lbUsersClick(Sender: TObject);
 var
   i, rowID: integer;
-  user: TUser;
-  roles: TUserRoles;
+  user: TSQLUser;
+  roles: TSQLUserRoles;
   date: Iso8601;
 begin
 clbRoles.Enabled:= (lbUsers.ItemIndex > -1) and (lbUsers.Items.Objects[lbUsers.ItemIndex] <> nil);
+FillRolesList(clbRoles.Items);  // clear names, dates and selections
 
 if clbRoles.Enabled then
   begin
-    user:= TUser.Create(Database, integer(lbUsers.Items.Objects[lbUsers.ItemIndex]));
+    user:= TSQLUser.Create(globalClient, integer(lbUsers.Items.Objects[lbUsers.ItemIndex]));
 
     try
       for i:= 0 to clbRoles.Items.Count -1 do
-        if user.HasRole(Database, '', integer(clbRoles.Items.Objects[i]), rowID) then
+        if user.HasRole('', integer(clbRoles.Items.Objects[i]), rowID) then
           begin
             clbRoles.Checked[i]:= true;
             try
-              roles:= TUserRoles.Create(Database, rowID);
+              roles:= TSQLUserRoles.Create(TSQLUser, 0);
+              // load the actual data (ValidUntil field)
+              globalClient.Retrieve(rowID, roles);
               date.Value:= roles.ValidUntil;
               clbRoles.Items.Strings[i]:= clbRoles.Items.Strings[i] + Format(' [valid until %s]', [date.Text(true)]);
             finally
@@ -563,31 +526,84 @@ if clbRoles.Enabled then
       FreeAndNil(user);
     end;
   end
-else
-  FillRolesList(clbRoles.Items);  // clear names, dates and selections
 end;
 
 procedure TForm1.clbRolesClickCheck(Sender: TObject);
 var
-  user: TUser;
+  user: TSQLUser;
   roleID: integer;
 begin
   if clbRoles.ItemIndex = -1 then
     exit;
 
-  user:= TUser.Create(Database, integer(lbUsers.Items.Objects[lbUsers.ItemIndex]));
+  user:= TSQLUser.Create(globalClient, integer(lbUsers.Items.Objects[lbUsers.ItemIndex]));
 
   try
     roleID:= Integer(clbRoles.Items.Objects[clbRoles.ItemIndex]);
-    user.Roles.ValidUntil:= Iso8601FromDateTime( IncMonth(now, 1) );
-    if user.HasRole(Database, '', roleID) then
-      user.Roles.ManyDelete(Database, user.ID, roleID)
+    user.Roles.ValidUntil:= Iso8601FromDateTime( IncMonth(Now(), 1) );
+    if user.HasRole('', roleID) then
+      user.Roles.ManyDelete(globalClient, user.ID, roleID)
     else
-      user.Roles.ManyAdd(Database, user.ID, roleID, true);
+      user.Roles.ManyAdd(globalClient, user.ID, roleID, true);
   finally
     FreeAndNil(user);
   end;
 
+end;
+
+procedure TForm1.clbRolesClick(Sender: TObject);
+var
+  roles: TSQLUserRoles;
+  roleID: integer;
+begin
+  if clbRoles.ItemIndex = -1 then
+    exit;
+
+  roleID:= integer(clbRoles.Items.Objects[clbRoles.ItemIndex]);
+  roles:= TSQLUserRoles.Create(TSQLUser, integer(lbUsers.Items.Objects[lbUsers.ItemIndex]));
+  try
+    //globalClient.Retrieve(rolesID, roles);
+    roles.ManySelect(globalClient, roleID);
+    if roles.id <> 0 then
+      dtRoleExpires.DateTime:= Iso8601(roles.ValidUntil).ToDate;
+  finally
+    FreeAndNil(roles);
+  end;
+end;
+
+procedure TForm1.dtRoleExpiresChange(Sender: TObject);
+var
+  roles: TSQLUserRoles;
+  roleID: integer;
+begin
+  if clbRoles.ItemIndex = -1 then
+    exit;
+
+  roleID:= integer(clbRoles.Items.Objects[clbRoles.ItemIndex]);
+  roles:= TSQLUserRoles.Create(TSQLUser, integer(lbUsers.Items.Objects[lbUsers.ItemIndex]));
+  try
+    // select the record which associates currently selected user with currently selected role
+    roles.ManySelect(globalClient, roleID);
+    if roles.id <> 0 then
+      begin
+        roles.ValidUntil:= Iso8601FromDateTime(dtRoleExpires.DateTime);
+        globalClient.Update(roles)
+      end;
+  finally
+    FreeAndNil(roles);
+  end;
+
+end;
+
+procedure TForm1.PageControl1Change(Sender: TObject);
+begin
+if PageControl1.ActivePage = tbUsers then
+  if currentUser <> nil then
+  if not currentUser.HasRole('admin') then
+    begin
+      PageControl1.ActivePage:= TabSheet3;
+      MessageBox(handle, 'You are not allowed to edit this content', 'Please sign-in as admin!', MB_ICONEXCLAMATION)
+    end;
 end;
 
 end.
