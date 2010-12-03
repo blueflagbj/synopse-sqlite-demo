@@ -37,12 +37,15 @@ type
   end;
 
   TSQLTasks = class(TSQLRecordMany)
+  private
+    fSource: TSQLCustomer;
+    fDest: TSQLTask;
   published
-    property Source: TRecordReference read fSource;
-    property Dest: TRecordReference read fDest;
+    property Source: TSQLCustomer read fSource;
+    property Dest: TSQLTask read fDest;
   end;
 
-
+  TSQLUser = class;
   TSQLUserRole = class(TSQLRecord)
   private
     fRoleName: RawUTF8;
@@ -56,12 +59,12 @@ type
   TSQLUserRoles = class(TSQLRecordMany)
   private
     fValidUntil: TTimeLog;
-  public
-    function GetRole(): TSQLUserRole;
+    fSource: TSQLUser;
+    fDest: TSQLUserRole;
   published
     property ValidUntil: TTimeLog read fValidUntil write fValidUntil;
-    property Dest: TRecordReference read fDest;
-    property Source: TRecordReference read fSource;
+    property Dest: TSQLUserRole read fDest;
+    property Source: TSQLUser read fSource;
   end;
 
   // user of our system
@@ -112,6 +115,7 @@ begin
 end;
 
 
+
 class procedure TSQLUserRole.CreateStandardRoles(const ADatabase: TSQLRest);
 const
   names: array [0..1] of RawUTF8 = ( 'user', 'admin' );
@@ -121,6 +125,7 @@ var
 begin
   for i:= low(names) to high(names) do
     begin
+
       role:= TSQLUserRole.Create(ADatabase, 'RoleName = "%"', [names[i]]);
       try
         // if the role isn't present yet
@@ -159,6 +164,7 @@ class function TSQLUser.SignIn(const ALogin, APassword: RawUTF8): Integer;
 var
   usr: TSQLUser;
 begin
+  result:= 0;
   usr:= TSQLUser.Create(globalClient, '(User.Login = "%" AND User.Password = "%")', [ALogin, SynCrypto.MD5(APassword)]);
   try
     result:= usr.ID;
@@ -180,10 +186,6 @@ begin
   result:= HasRole(ARoleName, ARoleID, dummy);
 end;
 
-function TSQLUserRoles.GetRole(): TSQLUserRole;
-begin
-  result:= TSQLUserRole(globalClient.Retrieve(fDest));
-end;
 
 
 function TSQLUser.HasRole(const ARoleName: RawUTF8; const ARoleID: integer; var ARowID: integer): boolean;
@@ -197,9 +199,9 @@ begin
 
   while fRoles.FillOne do
     begin
-      role:= fRoles.GetRole();
-      if role <> nil then
+      if fRoles.Dest <> nil then
         try
+          role:= TSQLUserRole.Create(globalClient, integer(fRoles.Dest));
           if ((ARoleID = -1) and (role.RoleName = ARoleName)) or ((ARoleID > -1) and (role.ID = ARoleID) ) then
             begin
               result:= fRoles.ValidUntil >= Iso8601Now();
