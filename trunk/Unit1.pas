@@ -267,6 +267,7 @@ begin
       globalClient.Add(task, true);
   finally
     FreeAndNil(task);
+    FillTasksList(lbTasks.Items, nil);
   end;
 
 end;
@@ -513,7 +514,7 @@ if clbRoles.Enabled then
           begin
             clbRoles.Checked[i]:= true;
             try
-              roles:= TSQLUserRoles.Create(TSQLUser, 0);
+              roles:= TSQLUserRoles.Create();
               // load the actual data (ValidUntil field)
               globalClient.Retrieve(rowID, roles);
               date.Value:= roles.ValidUntil;
@@ -560,10 +561,10 @@ begin
     exit;
 
   roleID:= integer(clbRoles.Items.Objects[clbRoles.ItemIndex]);
-  roles:= TSQLUserRoles.Create(TSQLUser, integer(lbUsers.Items.Objects[lbUsers.ItemIndex]));
+  roles:= TSQLUserRoles.Create();
   try
     //globalClient.Retrieve(rolesID, roles);
-    roles.ManySelect(globalClient, roleID);
+    roles.ManySelect(globalClient, integer(lbUsers.Items.Objects[lbUsers.ItemIndex]),roleID);
     if roles.id <> 0 then
       dtRoleExpires.DateTime:= Iso8601(roles.ValidUntil).ToDate;
   finally
@@ -580,10 +581,10 @@ begin
     exit;
 
   roleID:= integer(clbRoles.Items.Objects[clbRoles.ItemIndex]);
-  roles:= TSQLUserRoles.Create(TSQLUser, integer(lbUsers.Items.Objects[lbUsers.ItemIndex]));
+  roles:= TSQLUserRoles.Create();
   try
     // select the record which associates currently selected user with currently selected role
-    roles.ManySelect(globalClient, roleID);
+    roles.ManySelect(globalClient, integer(lbUsers.Items.Objects[lbUsers.ItemIndex]), roleID);
     if roles.id <> 0 then
       begin
         roles.ValidUntil:= Iso8601FromDateTime(dtRoleExpires.DateTime);
