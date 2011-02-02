@@ -23,7 +23,7 @@ begin
   LoginForm:= TLoginForm.Create(Application);
 
   // when no users defined, just let in ...
-  if TSQLUser.GetCount <= 0 then
+  if globalClient.TableRowCount(TSQLUser) <= 0 then
     LoginForm.LoginOk:= true
   else
     begin

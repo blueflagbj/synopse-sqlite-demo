@@ -80,9 +80,6 @@ type
     function HasRole(const ARoleName: RawUTF8; const ARoleID: integer; var ARowID: integer): boolean; overload;
     // returns 0 on fail, UserID on success
     class function SignIn(const ALogin, APassword: RawUTF8): Integer;
-    // counts all users
-    // -1 on error
-    class function GetCount(): integer;
   published
     property Roles: TSQLUserRoles read fRoles write fRoles;
     property Name;
@@ -146,19 +143,6 @@ begin
   fPassword:= SynCrypto.MD5(UTF8ToString(APwd));
 end;
 
-class function TSQLUser.GetCount(): integer;
-var
-  table: TSQLTable;
-begin
-  result:= -1;
-  table:= globalClient.ExecuteList([TSQLUser], 'SELECT COUNT(*) as CNT FROM User');
-  try
-    if table.RowCount > 0 then
-      result:= table.GetAsInteger(1, 0);
-  finally
-    FreeAndNil(table);
-  end;
-end;
 
 class function TSQLUser.SignIn(const ALogin, APassword: RawUTF8): Integer;
 var
@@ -204,7 +188,11 @@ begin
           role:= TSQLUserRole.Create(globalClient, integer(fRoles.Dest));
           if ((ARoleID = -1) and (role.RoleName = ARoleName)) or ((ARoleID > -1) and (role.ID = ARoleID) ) then
             begin
-              result:= fRoles.ValidUntil >= Iso8601Now();
+              // if using "admin" account, role validity doesn't expire.
+              if fLogin <> 'admin' then
+                result:= fRoles.ValidUntil >= Iso8601Now()
+              else
+                result:= true;
               ARowID:= fRoles.ID;
               break;
             end;
