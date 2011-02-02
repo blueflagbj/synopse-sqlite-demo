@@ -22,7 +22,7 @@ object Form1: TForm1
     Top = 0
     Width = 529
     Height = 329
-    ActivePage = TabSheet3
+    ActivePage = TabSheet1
     TabOrder = 0
     OnChange = PageControl1Change
     object TabSheet1: TTabSheet
