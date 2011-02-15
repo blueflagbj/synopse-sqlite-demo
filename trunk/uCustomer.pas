@@ -181,11 +181,12 @@ begin
   // we want the RowID anyway, so skip that part: 'UserRoles.ValidUntil <= date(''now'')'
   fRoles.FillMany(globalClient, fID);
 
+  // loop through the roles
   while fRoles.FillOne do
     begin
       if fRoles.Dest <> nil then
         try
-          role:= TSQLUserRole.Create(globalClient, integer(fRoles.Dest));
+          role:= TSQLUserRole.Create(globalClient, fRoles.Dest.ID);
           if ((ARoleID = -1) and (role.RoleName = ARoleName)) or ((ARoleID > -1) and (role.ID = ARoleID) ) then
             begin
               // if using "admin" account, role validity doesn't expire.
