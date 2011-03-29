@@ -11,9 +11,9 @@ type
 
   TSQLPerson = class(TSQLRecord)
   private
-    fName, fSurname: RawUTF8;
+    fFirstname, fSurname: RawUTF8;
   published
-    property Name: RawUTF8 read fName write fName;
+    property FirstName: RawUTF8 read fFirstname write fFirstname;
     property Surname: RawUTF8 read fSurname write fSurname;
   end;
 
@@ -21,7 +21,7 @@ type
   private
     fTasks: TSQLTasks;
   published
-    property Name;
+    property Firstname;
     property Surname;
     property Tasks: TSQLTasks read fTasks;
   end;
@@ -82,7 +82,7 @@ type
     class function SignIn(const ALogin, APassword: RawUTF8): Integer;
   published
     property Roles: TSQLUserRoles read fRoles write fRoles;
-    property Name;
+    property Firstname;
     property Surname;
     property Login: RawUTF8 read fLogin write fLogin;
     property Password: RawUTF8 read fPassword write SetPassword;
