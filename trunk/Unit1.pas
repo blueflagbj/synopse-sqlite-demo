@@ -105,7 +105,7 @@ procedure TForm1.DisplayCustomerInfo(const ACustomer: TSQLCustomer);
 begin
   if ACustomer <> nil then
     begin
-      lblName.Caption:= UTF8ToString(ACustomer.Name);
+      lblName.Caption:= UTF8ToString(ACustomer.Firstname);
       lblSurname.Caption:= UTF8ToString(ACustomer.Surname);
       LoadTasksForCustomer(ACustomer, lbCustomerTasks.Items);
     end
@@ -145,7 +145,7 @@ begin
       AList.Clear();
     cust:= TSQLCustomer.CreateAndFillPrepare(globalClient, '');
     while cust.FillOne do
-      AList.AddObject(Format('%s, %s', [UTF8ToString(cust.Surname), UTF8ToString(cust.Name)]), Pointer(cust.ID)); // we keep integer ID as "Data" object
+      AList.AddObject(Format('%s, %s', [UTF8ToString(cust.Surname), UTF8ToString(cust.Firstname)]), Pointer(cust.ID)); // we keep integer ID as "Data" object
 
   finally
     AList.EndUpdate();
@@ -224,9 +224,9 @@ begin
 
   cust:= TSQLCustomer.Create;
   try
-    cust.Name:= StringToUTF8(InputBox('Name', 'Customer name', 'John'));
+    cust.Firstname:= StringToUTF8(InputBox('First name', 'Customer first name', 'John'));
     cust.Surname:= StringToUTF8(InputBox('Surname', 'Customer surname', 'Doe'));
-    if (cust.Name <> '') and (cust.Surname <> '') then
+    if (cust.Firstname <> '') and (cust.Surname <> '') then
       globalClient.Add(cust, true);
   finally
     FreeAndNil(cust);
@@ -370,7 +370,7 @@ begin
                     cust.Tasks.ManyAdd(globalClient, cust.ID, task.ID, true)
                   else
                     cust.Tasks.ManyDelete(globalClient, cust.ID, task.ID);
-                    
+
                   FreeAndNil(cust);
                 end;
             end;
@@ -413,7 +413,7 @@ if Key = VK_RETURN then
       FreeAndNil(hist);
       LoadQueryHistory();
     end;
-    
+
   end;
 end;
 
@@ -461,7 +461,7 @@ begin
       AList.Clear();
     user:= TSQLUser.CreateAndFillPrepare(globalClient, '');
     while user.FillOne do
-      AList.AddObject(Format('%s (%s, %s)', [UTF8ToString(user.login), UTF8ToString(user.Surname), UTF8ToString(user.Name)]), Pointer(user.ID)); // we keep integer ID as "Data" object
+      AList.AddObject(Format('%s (%s, %s)', [UTF8ToString(user.login), UTF8ToString(user.Surname), UTF8ToString(user.Firstname)]), Pointer(user.ID)); // we keep integer ID as "Data" object
 
   finally
     AList.EndUpdate();
@@ -478,11 +478,11 @@ begin
 
   user:= TSQLUser.Create;
   try
-    user.Name:= StringToUTF8( InputBox('Name', 'User name', '') );
+    user.Firstname:= StringToUTF8( InputBox('First name', 'User first name', '') );
     user.Surname:= StringToUTF8( InputBox('Surname', 'User surname', '') );
     user.Login:= StringToUTF8( InputBox('Login', 'User login', '') );
     user.Password:= StringToUTF8( InputBox('Password', 'User password', '') );
-    if (user.Name <> '') and (user.Surname <> '') and (user.Password <> '') and (user.Login <> '') then
+    if (user.Firstname <> '') and (user.Surname <> '') and (user.Password <> '') and (user.Login <> '') then
       globalClient.Add(user, true)
     else
       MessageBox(handle, 'None of the data can be empty!', 'Wrong', MB_ICONEXCLAMATION);

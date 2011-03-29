@@ -129,7 +129,7 @@ object Form1: TForm1
         Width = 241
         Height = 21
         Style = csDropDownList
-        ItemHeight = 13
+        ItemHeight = 0
         TabOrder = 2
         OnClick = cbCustomersClick
       end
@@ -185,7 +185,7 @@ object Form1: TForm1
         Top = 8
         Width = 505
         Height = 21
-        ItemHeight = 13
+        ItemHeight = 0
         TabOrder = 1
         OnKeyDown = edtQueryKeyDown
       end
