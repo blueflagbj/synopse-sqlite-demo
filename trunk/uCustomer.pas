@@ -21,8 +21,6 @@ type
   private
     fTasks: TSQLTasks;
   published
-    property Firstname;
-    property Surname;
     property Tasks: TSQLTasks read fTasks;
   end;
 
@@ -82,8 +80,6 @@ type
     class function SignIn(const ALogin, APassword: RawUTF8): Integer;
   published
     property Roles: TSQLUserRoles read fRoles write fRoles;
-    property Firstname;
-    property Surname;
     property Login: RawUTF8 read fLogin write fLogin;
     property Password: RawUTF8 read fPassword write SetPassword;
   end;
