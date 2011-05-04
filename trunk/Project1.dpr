@@ -4,7 +4,9 @@
 program Project1;
 
 uses
+{$IFDEF USE_FASTMM}
   FastMM4,
+{$ENDIF}
   Forms,
   Controls,
   Unit1 in 'Unit1.pas' {Form1},
