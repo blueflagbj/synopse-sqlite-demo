@@ -1,0 +1,1 @@
+The amazing Synopse SQLite3 Framework is a powerful piece of code, but it's missing examples. Thus I found it a good idea to write my own demo, and allow others to improve it.
